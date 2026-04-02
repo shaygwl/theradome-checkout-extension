@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="GWL checkout extension placeholder icon">
+  <rect width="512" height="512" rx="96" fill="#111827"/>
+  <rect x="32" y="32" width="448" height="448" rx="76" fill="#1f2937"/>
+  <text x="256" y="246" text-anchor="middle" fill="#ffffff" font-size="96" font-family="Arial, Helvetica, sans-serif" font-weight="700">GWL</text>
+  <text x="256" y="312" text-anchor="middle" fill="#9ca3af" font-size="30" font-family="Arial, Helvetica, sans-serif">placeholder icon</text>
+</svg>

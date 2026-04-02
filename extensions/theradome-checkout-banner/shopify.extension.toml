@@ -6,7 +6,7 @@
 api_version = "2025-07"
 
 [[extensions]]
-name = "theradome-checkout-banner"
+name = "GWL - Theradome checkout banners"
 handle = "theradome-checkout-banner"
 type = "ui_extension"
 uid = "2966ffbf-f9fe-fe5d-b696-44dbaaa2ad33a4582c1a"
@@ -18,6 +18,10 @@ uid = "2966ffbf-f9fe-fe5d-b696-44dbaaa2ad33a4582c1a"
 [[extensions.targeting]]
 module = "./src/Checkout.jsx"
 target = "purchase.checkout.block.render"
+
+[[extensions.targeting]]
+module = "./src/Header.jsx"
+target = "purchase.checkout.header.render-after"
 
 [extensions.capabilities]
 # Gives your extension access to directly query Shopify’s storefront API.

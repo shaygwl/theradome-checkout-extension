@@ -1,8 +1,8 @@
 import {
   reactExtension,
   BlockStack,
-  useApi,
   useAttributes,
+  useCartLines,
 } from "@shopify/ui-extensions-react/checkout";
 import { Image } from "@shopify/ui-extensions/checkout";
 
@@ -11,26 +11,62 @@ export default reactExtension("purchase.checkout.block.render", () => (
 ));
 
 function Extension() {
+  const cartLines = useCartLines();
+  const cartAttributes = useAttributes();
 
-  const { extension } = useApi();
+  const PRO_HELMET_VARIANT_ID = "45238034825508";
+  const EVO_HELMET_VARIANT_ID = "45238037152036";
+  const BUNDLE_VARIANT_ID = "51972662722852";
 
-    const cartAttributes = useAttributes();
+  const BUNDLE_CHECKOUT_BANNER =
+    "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/bundle-checkout-banner.png?v=1775126842";
 
-    const product_warranty = cartAttributes.find(attr => attr.key === 'product_warranty')?.value ?? '';
+  const SIX_MONTH_WARRANTY_BANNER =
+    "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/Row_f346b3a3-87d3-478f-93a5-f22abb11e425.png?v=1724425851";
+  const TWELVE_MONTH_WARRANTY_BANNER =
+    "https://cdn.shopify.com/s/files/1/0625/3484/4663/files/image_9.png?v=1753422637";
 
-    console.log(cartAttributes, "product_warranty", product_warranty);
+  const cartProductWarranty =
+    cartAttributes.find((attr) => attr.key === "product_warranty")?.value ?? "";
 
-  let imageUrl = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/Row_f346b3a3-87d3-478f-93a5-f22abb11e425.png?v=1724425851";
+  const isVariantId = (merchandiseId, numericVariantId) =>
+    typeof merchandiseId === "string" &&
+    merchandiseId.includes("gid://shopify/ProductVariant/") &&
+    merchandiseId.endsWith(`/${numericVariantId}`);
 
-  if (product_warranty.includes("6 month")) {
-    imageUrl = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/Row_f346b3a3-87d3-478f-93a5-f22abb11e425.png?v=1724425851"; // 6-month image
-  } else if (product_warranty.includes("12 month")) {
-    imageUrl = "https://cdn.shopify.com/s/files/1/0625/3484/4663/files/image_9.png?v=1753422637"; // 12-month image
+  const helmetInCart = cartLines.some((line) => {
+    const id = line?.merchandise?.id;
+    return (
+      isVariantId(id, PRO_HELMET_VARIANT_ID) || isVariantId(id, EVO_HELMET_VARIANT_ID)
+    );
+  });
+
+  const bundleLine = cartLines.find((line) =>
+    isVariantId(line?.merchandise?.id, BUNDLE_VARIANT_ID),
+  );
+  const bundleInCart = Boolean(bundleLine);
+
+  const bundleProductWarranty =
+    bundleLine?.attributes?.find((attr) => attr.key === "product_warranty")?.value ??
+    cartProductWarranty;
+
+  let imageUrl = SIX_MONTH_WARRANTY_BANNER;
+
+  if (bundleInCart && !helmetInCart) {
+    imageUrl = BUNDLE_CHECKOUT_BANNER;
+  } else {
+    const warrantyToUse = bundleInCart && helmetInCart ? bundleProductWarranty : cartProductWarranty;
+
+    if (warrantyToUse.includes("6 month")) {
+      imageUrl = SIX_MONTH_WARRANTY_BANNER; // 6-month image
+    } else if (warrantyToUse.includes("12 month")) {
+      imageUrl = TWELVE_MONTH_WARRANTY_BANNER; // 12-month image
+    }
   }
 
   return (
     <BlockStack>
-      <Image  source={imageUrl} border="base" cornerRadius="base" />
+      <Image source={imageUrl} border="base" cornerRadius="base" />
     </BlockStack>
   );
 
