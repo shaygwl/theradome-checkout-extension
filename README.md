@@ -28,6 +28,11 @@ Source file: `extensions/theradome-checkout-banner/src/Header.jsx`
 - If bundle is in cart/checkout and no helmet is present:
   - `https://cdn.shopify.com/s/files/1/0721/6024/8100/files/bundle-top-banner.png?v=1775127613`
 
+**Responsive header art (viewport):** Checkout UI only supports named breakpoints on `Image` (`viewportInlineSize.min`), not arbitrary pixel widths. The header uses **mobile** images as the default and switches to **desktop** images at `min: "medium"` (not `min: "large"`, which was matching around ~1200px). Mobile URLs:
+
+- `https://cdn.shopify.com/s/files/1/0721/6024/8100/files/helmet-top-banner-mobile.png?v=1775133598`
+- `https://cdn.shopify.com/s/files/1/0721/6024/8100/files/bundle-top-banner-mobile.png?v=1775133812`
+
 ### 2) Checkout/order-summary banner block
 
 Source file: `extensions/theradome-checkout-banner/src/Checkout.jsx`

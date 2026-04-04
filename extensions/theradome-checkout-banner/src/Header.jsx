@@ -62,7 +62,7 @@ function Extension() {
             default: mobileTopHeaderImageUrl,
             conditionals: [
               {
-                conditions: { viewportInlineSize: { min: "large" } },
+                conditions: { viewportInlineSize: { min: "medium" } },
                 value: desktopTopHeaderImageUrl,
               },
             ],
