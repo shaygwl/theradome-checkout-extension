@@ -49,14 +49,18 @@ function Extension() {
       ? BUNDLE_TOP_BANNER_MOBILE
       : HELMET_TOP_BANNER_MOBILE;
 
+  // s-image defaults to a 1/1 frame, so set each banner's real width/height ratio
+  const DESKTOP_BANNER_ASPECT_RATIO = "2180/478";
+  const MOBILE_BANNER_ASPECT_RATIO = "1500/800";
+
   // Mobile banner below 750px, desktop banner from 750px up
   return (
     <s-query-container>
       <s-box display="@container (inline-size >= 750px) none, auto">
-        <s-image src={mobileTopHeaderImageUrl} alt="" inlineSize="fill" />
+        <s-image src={mobileTopHeaderImageUrl} alt="" inlineSize="fill" aspectRatio={MOBILE_BANNER_ASPECT_RATIO} />
       </s-box>
       <s-box display="@container (inline-size >= 750px) auto, none">
-        <s-image src={desktopTopHeaderImageUrl} alt="" inlineSize="fill" />
+        <s-image src={desktopTopHeaderImageUrl} alt="" inlineSize="fill" aspectRatio={DESKTOP_BANNER_ASPECT_RATIO} />
       </s-box>
     </s-query-container>
   );

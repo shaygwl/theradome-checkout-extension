@@ -30,6 +30,16 @@ function Extension() {
   const TWELVE_MONTH_WARRANTY_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/twelve_month_warranty_banner.png?v=1789390950";
   const TWELVE_MONTH_NO_SHIPPING_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/twelve_month_warranty_banner_no_ship.png?v=1789391204";
 
+  // s-image defaults to a 1/1 frame, so set each banner's real width/height ratio
+  const BANNER_ASPECT_RATIOS = {
+    [BUNDLE_CHECKOUT_BANNER]: "878/576",
+    [BUNDLE_NO_SHIPPING_BANNER]: "878/444",
+    [SIX_MONTH_WARRANTY_BANNER]: "1756/1824",
+    [SIX_MONTH_NO_SHIPPING_BANNER]: "1756/1538",
+    [TWELVE_MONTH_WARRANTY_BANNER]: "878/1096",
+    [TWELVE_MONTH_NO_SHIPPING_BANNER]: "878/964",
+  };
+
   const cartProductWarranty =
     cartAttributes.find((attr) => attr.key === "product_warranty")?.value ?? "";
 
@@ -120,7 +130,7 @@ function Extension() {
 
   return (
     <s-stack>
-      <s-image src={imageUrl} alt="" border="base" borderRadius="base" />
+      <s-image src={imageUrl} alt="" aspectRatio={BANNER_ASPECT_RATIOS[imageUrl]} border="base" borderRadius="base" />
     </s-stack>
   );
 }
