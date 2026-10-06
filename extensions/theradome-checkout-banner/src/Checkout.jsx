@@ -1,28 +1,18 @@
-import { useEffect } from "react";
-import {
-  reactExtension,
-  BlockStack,
-  useAttributes,
-  useCartLines,
-  useShippingAddress,
-  useDeliveryGroups,
-  Image,
-  useDiscountCodes,
-  useApplyDiscountCodeChange,
-} from "@shopify/ui-extensions-react/checkout";
+import "@shopify/ui-extensions/preact";
+import { render } from "preact";
+import { useEffect } from "preact/hooks";
 
-export default reactExtension("purchase.checkout.block.render", () => (
-  <Extension />
-));
+export default async () => {
+  render(<Extension />, document.body);
+};
 
 function Extension() {
-  const cartLines = useCartLines();
-  const cartAttributes = useAttributes();
-  const shippingAddress = useShippingAddress();
-  const deliveryGroups = useDeliveryGroups();
-  
-  const discountCodes = useDiscountCodes();
-  const applyDiscountCodeChange = useApplyDiscountCodeChange();
+  const cartLines = shopify.lines.value;
+  const cartAttributes = shopify.attributes.value;
+  const shippingAddress = shopify.shippingAddress?.value;
+  const deliveryGroups = shopify.deliveryGroups.value;
+
+  const discountCodes = shopify.discountCodes.value;
 
   // Variant IDs
   const PRO_HELMET_VARIANT_ID = "45238034825508";
@@ -88,13 +78,15 @@ function Extension() {
       );
 
       if (!isTargetApplied) {
-        applyDiscountCodeChange({
-          type: "addDiscountCode",
-          code: targetCode,
-        }).catch((err) => console.error("Failed to reapply discount:", err));
+        shopify
+          .applyDiscountCodeChange({
+            type: "addDiscountCode",
+            code: targetCode,
+          })
+          .catch((err) => console.error("Failed to reapply discount:", err));
       }
     }
-  }, [targetCode, discountCodes, applyDiscountCodeChange]);
+  }, [targetCode, discountCodes]);
 
   // Banner Logic
   let isNoShipping = false;
@@ -104,8 +96,10 @@ function Extension() {
     isNoShipping = countryCode !== "US";
   } else if (deliveryGroups && deliveryGroups.length > 0) {
     const hasShippingCost = deliveryGroups.some(group => {
-      const amount = group.selectedDeliveryOption?.cost?.amount ?? 0;
-      return parseFloat(amount) > 0;
+      const selectedHandle = group.selectedDeliveryOption?.handle;
+      const selectedOption = group.deliveryOptions.find((option) => option.handle === selectedHandle);
+      const amount = selectedOption && "cost" in selectedOption ? selectedOption.cost.amount : 0;
+      return Number(amount) > 0;
     });
     isNoShipping = hasShippingCost;
   }
@@ -125,8 +119,8 @@ function Extension() {
   }
 
   return (
-    <BlockStack>
-      <Image source={imageUrl} border="base" cornerRadius="base" />
-    </BlockStack>
+    <s-stack>
+      <s-image src={imageUrl} alt="" border="base" borderRadius="base" />
+    </s-stack>
   );
 }

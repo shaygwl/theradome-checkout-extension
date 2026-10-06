@@ -1,17 +1,12 @@
-import {
-  reactExtension,
-  BlockStack,
-  useCartLines,
-  View,
-} from "@shopify/ui-extensions-react/checkout";
-import { Image } from "@shopify/ui-extensions/checkout";
+import "@shopify/ui-extensions/preact";
+import { render } from "preact";
 
-export default reactExtension("purchase.checkout.header.render-after", () => (
-  <Extension />
-));
+export default async () => {
+  render(<Extension />, document.body);
+};
 
 function Extension() {
-  const cartLines = useCartLines();
+  const cartLines = shopify.lines.value;
 
   const PRO_HELMET_VARIANT_ID = "45238034825508";
   const EVO_HELMET_VARIANT_ID = "45238037152036";
@@ -54,23 +49,15 @@ function Extension() {
       ? BUNDLE_TOP_BANNER_MOBILE
       : HELMET_TOP_BANNER_MOBILE;
 
+  // Mobile banner below 750px, desktop banner from 750px up
   return (
-    <BlockStack>
-      <View maxInlineSize="fill" display="block">
-        <Image
-          source={{
-            default: mobileTopHeaderImageUrl,
-            conditionals: [
-              {
-                conditions: { viewportInlineSize: { min: "medium" } },
-                value: desktopTopHeaderImageUrl,
-              },
-            ],
-          }}
-          fit="fill"
-        />
-      </View>
-    </BlockStack>
+    <s-query-container>
+      <s-box display="@container (inline-size >= 750px) none, auto">
+        <s-image src={mobileTopHeaderImageUrl} alt="" inlineSize="fill" />
+      </s-box>
+      <s-box display="@container (inline-size >= 750px) auto, none">
+        <s-image src={desktopTopHeaderImageUrl} alt="" inlineSize="fill" />
+      </s-box>
+    </s-query-container>
   );
 }
-
