@@ -72,6 +72,17 @@ function Extension() {
     bundleLine?.attributes?.find((attr) => attr.key === "product_warranty")?.value ??
     cartProductWarranty;
 
+  // Codes the auto-reapply below must not touch. The check further down is an
+  // exact match, so a code like PROBUNDLE26TEST does not read as PROBUNDLE26
+  // already being applied: the extension adds PROBUNDLE26, the two cannot
+  // combine, and Shopify drops the one that was deliberately applied. While
+  // any of these is on the checkout the auto-reapply stands down entirely.
+  const PROTECTED_DISCOUNT_CODES = ["PROBUNDLE26TEST"];
+
+  const hasProtectedCode = discountCodes.some((dc) =>
+    PROTECTED_DISCOUNT_CODES.includes(dc?.code?.toUpperCase())
+  );
+
   // Set target discount code ONLY if a complete bundle is present
   let targetCode = null;
   if (isProBundleComplete) {
@@ -82,7 +93,7 @@ function Extension() {
 
   // Auto-Reapply Logic
   useEffect(() => {
-    if (targetCode) {
+    if (targetCode && !hasProtectedCode) {
       const isTargetApplied = discountCodes.some(
         (dc) => dc.code.toUpperCase() === targetCode.toUpperCase()
       );
@@ -96,7 +107,7 @@ function Extension() {
           .catch((err) => console.error("Failed to reapply discount:", err));
       }
     }
-  }, [targetCode, discountCodes]);
+  }, [targetCode, discountCodes, hasProtectedCode]);
 
   // Banner Logic
   let isNoShipping = false;
