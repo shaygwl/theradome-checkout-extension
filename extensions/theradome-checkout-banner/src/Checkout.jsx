@@ -16,7 +16,7 @@ function Extension() {
   const discountCodes = shopify.discountCodes.value;
 
   const { config, ready } = useCheckoutConfig();
-  const { variants, images, discountCodes: codes, protectedDiscountCodes } = config;
+  const { variants, images, discountCodes: codes } = config;
 
   const cartProductWarranty =
     cartAttributes.find((attr) => attr.key === "product_warranty")?.value ?? "";
@@ -45,14 +45,12 @@ function Extension() {
     bundleLine?.attributes?.find((attr) => attr.key === "product_warranty")?.value ??
     cartProductWarranty;
 
-  // Codes the auto-reapply below must not touch. The check further down is an
-  // exact match, so a code like PROBUNDLE26TEST does not read as PROBUNDLE26
-  // already being applied: the extension adds PROBUNDLE26, the two cannot
-  // combine, and Shopify drops the one that was deliberately applied. While
-  // any of these is on the checkout the auto-reapply stands down entirely.
-  const hasProtectedCode = discountCodes.some((dc) =>
-    protectedDiscountCodes.includes(dc?.code?.toUpperCase())
-  );
+  // The auto-reapply only fills an empty checkout. Any code already applied was
+  // chosen on purpose (PROBUNDLE26S after the subscription upgrade, a quiz
+  // code, a Black Friday or other sale code, a test code). Adding the bundle
+  // code on top of it means two codes that cannot combine, and Shopify drops
+  // the one the buyer wanted.
+  const hasAnyCode = discountCodes.length > 0;
 
   // Set target discount code ONLY if a complete bundle is present. Waits for
   // the config so a fallback code is never applied ahead of the configured one.
@@ -65,21 +63,15 @@ function Extension() {
 
   // Auto-Reapply Logic
   useEffect(() => {
-    if (targetCode && !hasProtectedCode) {
-      const isTargetApplied = discountCodes.some(
-        (dc) => dc.code.toUpperCase() === targetCode.toUpperCase()
-      );
-
-      if (!isTargetApplied) {
-        shopify
-          .applyDiscountCodeChange({
-            type: "addDiscountCode",
-            code: targetCode,
-          })
-          .catch((err) => console.error("Failed to reapply discount:", err));
-      }
+    if (targetCode && !hasAnyCode) {
+      shopify
+        .applyDiscountCodeChange({
+          type: "addDiscountCode",
+          code: targetCode,
+        })
+        .catch((err) => console.error("Failed to reapply discount:", err));
     }
-  }, [targetCode, discountCodes, hasProtectedCode]);
+  }, [targetCode, hasAnyCode]);
 
   // Hold the banner until the config settles so the fallback never flashes first
   if (!ready) return null;

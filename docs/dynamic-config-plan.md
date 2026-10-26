@@ -6,22 +6,26 @@
 | --- | --- | --- |
 | Header banner (desktop + mobile) | `extensions/theradome-checkout-banner/src/Header.jsx` | Hardcoded variant IDs and image URLs |
 | Order-summary banner + discount auto-apply | `extensions/theradome-checkout-banner/src/Checkout.jsx` | Hardcoded variant IDs, image URLs, aspect ratios, discount codes |
-| Subscription bundle validation (new) | `extensions/subscription-bundle-validation` | Product metafield `custom.requires_any_product`, falling back to hardcoded IDs |
+| Subscription bundle validation (new) | `extensions/subscription-bundle-validation` | Product metafields `custom.helmet_required_selling_plans` and `custom.requires_any_product`, falling back to hardcoded IDs |
 
 Rule for every step below: **the current constants stay in the code as the fallback.** A field that is missing, empty or invalid in the admin uses its constant, so a half-filled config or a failed fetch makes checkout behave the same as today.
 
 ## 1. Subscription validation (implemented)
 
-The Shopify Function blocks checkout (it does not block adding to the cart) when the $0 subscription is in the cart without a PRO or EVO helmet. It also blocks when there are more subscriptions than helmets.
+The Shopify Function blocks checkout when the $0 subscription is in the cart without a PRO or EVO helmet. It also blocks when there are more $0 subscriptions than helmets. It never blocks adding to the cart.
 
-- A line counts as restricted when its product has `custom.requires_any_product` set, or it is product `10336375603492`, or it uses selling plan `692041908516`.
-- It needs at least as many units of the required products as restricted units.
-- Required products come from `custom.requires_any_product` (a list of product or variant references). If that metafield is missing, the PRO and EVO helmet variants are used.
+**Only the selling plan is restricted, not the product.** Product `10336375603492` (Complete Hair Growth Bundle) is also sold on its own, one-time or on the regular plan `691283656996`. Those orders are never blocked.
 
-To make it dynamic in the admin:
-1. Settings → Custom data → Products → add the definition `custom.requires_any_product`, type **list of products**.
-2. On the subscription product, pick the PRO and EVO helmet products.
-3. Any future bundle-only product only needs the same metafield filled in. No deploy is needed.
+- **Restricted line:** a line bought on a selling plan listed in its product's `custom.helmet_required_selling_plans`. If that metafield is empty, the list is just `692041908516`.
+- **What counts as a helmet:** the products in `custom.requires_any_product`. If that metafield is empty, a helmet is PRO `8321560084772`, EVO `8321561362724`, their variants, or any product with type `Theradome Helmet Category (NEW)`. The product type is what covers separate sale listings, such as a Black Friday helmet product.
+- **Quantity:** there must be at least as many helmets as restricted units.
+
+To make it dynamic in the admin (both are optional, and empty means the fallback above):
+1. Settings → Custom data → Products → add `custom.helmet_required_selling_plans`, type **single line text, list**. Enter selling plan IDs, for example `692041908516`.
+2. Add `custom.requires_any_product`, type **product, list**. Pick the products that unlock the plan.
+3. Fill them in on the bundle product. Changes apply without a deploy.
+
+Tested in 17 fixtures against the compiled function. They include the real 4-product PRO bundle cart, the bundle alone (one-time and on the regular plan), a helmet with other products, and a separate Black Friday helmet listing.
 
 To go live: `shopify app deploy --config gwl-checkout-banners`, then Settings → Checkout → **Checkout rules** → add "GWL - Subscription bundle validation" and turn it on. Custom apps that use Functions need Shopify Plus.
 
@@ -40,7 +44,6 @@ Create the metaobject definition with **Storefront API access: read** turned on,
 | `six_month_banner`, `six_month_banner_no_shipping` | File (image) | `SIX_MONTH_*` |
 | `twelve_month_banner`, `twelve_month_banner_no_shipping` | File (image) | `TWELVE_MONTH_*` |
 | `discount_codes` | JSON `{ pro, pro_quiz, evo, evo_quiz }` | `PROBUNDLE26`, `TQPRO26`, … |
-| `protected_discount_codes` | List of single-line text | `PROTECTED_DISCOUNT_CODES` |
 
 Image fields return `MediaImage.image { url width height }`, so the aspect ratio comes from the file itself. The hand-maintained `BANNER_ASPECT_RATIOS` map is then only needed for the fallback URLs.
 
@@ -65,6 +68,10 @@ If marketing later needs brand-new conditions (for example a market-specific ban
 3. Both banners render nothing until `ready`, so an old fallback image never flashes before the configured one. When no metaobject exists, this adds one Storefront API round trip before the banner appears.
 4. The discount auto-apply waits for `ready`, so it never applies a fallback code ahead of the configured one.
 5. Variant matching compares full GIDs (`gid://shopify/ProductVariant/…`).
+6. **Change from the live version: the discount auto-apply only adds a bundle code when the checkout has no discount code at all.**
+   - The live version adds the bundle code whenever its exact name is missing. With `PROBUNDLE26S` (after the upgrade button) it adds `PROBUNDLE26`, and with `TQPRO26S` it adds `TQPRO26`. With any sale code (Black Friday, Cyber Monday, November) it adds the bundle code on top. This was confirmed by running the live code through a test harness.
+   - Any code already applied is now left alone. So there is no list of protected codes to maintain for new sale codes.
+   - If the buyer removes every code from a complete bundle, the bundle code is still re-added as before.
 
 ### Creating the metaobject
 
@@ -79,7 +86,6 @@ Field types:
 | `pro_helmet`, `evo_helmet`, `hair_bundle`, `pro_warranty`, `evo_warranty`, `ebook` | Product variant (one) |
 | `header_helmet_desktop`, `header_helmet_mobile`, `header_bundle_desktop`, `header_bundle_mobile`, `bundle_banner`, `bundle_banner_no_shipping`, `six_month_banner`, `six_month_banner_no_shipping`, `twelve_month_banner`, `twelve_month_banner_no_shipping` | File (images only) |
 | `discount_codes` | JSON, for example `{"pro":"PROBUNDLE26","pro_quiz":"TQPRO26","evo":"EVOBUNDLE26","evo_quiz":"TQEVO26"}`. Keys you leave out keep their default. |
-| `protected_discount_codes` | Single line text (list) |
 
 Then add one entry with the handle **`default`**. Leave any field empty to keep today's value for it.
 
@@ -91,6 +97,14 @@ Then add one entry with the handle **`default`**. Leave any field empty to keep 
 
 ### Test checklist
 
-- No metaobject, metaobject with empty fields, metaobject with a broken image: all should show today's banners.
-- Every banner branch: helmet only, bundle only, bundle + helmet with a 6- or 12-month warranty, US vs non-US address.
-- Quiz taker vs not, and with `PROBUNDLE26TEST` applied: the codes should match today's behaviour.
+Automated (harness rendering the real `Checkout.jsx` and `Header.jsx` with a mocked `shopify` object; 26 scenarios pass):
+- Banners show today's images when there is no metaobject, an empty metaobject, a failed query, an errored query (no Storefront access), a hung query (after 4s) or a broken image.
+- A configured image replaces only its own banner.
+- Auto-apply adds `PROBUNDLE26`, `TQPRO26`, `EVOBUNDLE26` or `TQEVO26` to a complete bundle with no code.
+- Auto-apply leaves `PROBundle26`, `PROBUNDLE26S`, `TQPRO26S`, `EVOBUNDLE26S`, `PROBUNDLE26TEST` and sale codes alone.
+- Auto-apply does nothing for an incomplete bundle, and waits for the config.
+
+Still to check manually on a dev store or in the checkout editor before go-live:
+- Every banner branch on a real checkout: helmet only, bundle only, bundle + helmet with a 6- or 12-month warranty, US vs non-US address.
+- Upgrade-subscription flow: cart with `PROBUNDLE26` → upgrade → `PROBUNDLE26S` stays applied through checkout.
+- The $0 plan without a helmet shows the validation error. The bundle on the regular plan checks out normally.

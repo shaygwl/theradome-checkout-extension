@@ -40,8 +40,6 @@ export const DEFAULT_CONFIG = {
     evo: "EVOBUNDLE26",
     evoQuiz: "TQEVO26",
   },
-  // See the auto-reapply comment in Checkout.jsx for why these exist
-  protectedDiscountCodes: ["PROBUNDLE26TEST"],
 };
 
 // Metaobject field key → config key
@@ -122,7 +120,6 @@ export function mergeConfig(defaults, fields) {
     variants: { ...defaults.variants },
     images: { ...defaults.images },
     discountCodes: { ...defaults.discountCodes },
-    protectedDiscountCodes: defaults.protectedDiscountCodes,
   };
   if (!Array.isArray(fields)) return config;
 
@@ -136,11 +133,6 @@ export function mergeConfig(defaults, fields) {
       const codes = parseJson(value);
       for (const [remoteKey, configKey] of Object.entries(DISCOUNT_CODE_KEYS)) {
         if (isCode(codes?.[remoteKey])) config.discountCodes[configKey] = codes[remoteKey].trim();
-      }
-    } else if (key === "protected_discount_codes") {
-      const codes = parseJson(value);
-      if (Array.isArray(codes)) {
-        config.protectedDiscountCodes = codes.filter(isCode).map((code) => code.trim().toUpperCase());
       }
     }
   }

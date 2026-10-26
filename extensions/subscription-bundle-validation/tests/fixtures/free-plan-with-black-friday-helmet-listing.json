@@ -4,10 +4,24 @@
     "target": "cart.validations.generate.run",
     "input": {
       "buyerJourney": {
-        "step": "CHECKOUT_INTERACTION"
+        "step": "CHECKOUT_COMPLETION"
       },
       "cart": {
         "lines": [
+          {
+            "quantity": 1,
+            "sellingPlanAllocation": null,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/99900000000001",
+              "product": {
+                "id": "gid://shopify/Product/99900000000002",
+                "productType": "Theradome Helmet Category (NEW)",
+                "helmetRequiredSellingPlans": null,
+                "requiresAnyProduct": null
+              }
+            }
+          },
           {
             "quantity": 1,
             "sellingPlanAllocation": {
@@ -17,21 +31,11 @@
             },
             "merchandise": {
               "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/1",
+              "id": "gid://shopify/ProductVariant/51972662722852",
               "product": {
                 "id": "gid://shopify/Product/10336375603492",
-                "requiresAnyProduct": null
-              }
-            }
-          },
-          {
-            "quantity": 1,
-            "sellingPlanAllocation": null,
-            "merchandise": {
-              "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/45238034825508",
-              "product": {
-                "id": "gid://shopify/Product/900",
+                "productType": "",
+                "helmetRequiredSellingPlans": null,
                 "requiresAnyProduct": null
               }
             }

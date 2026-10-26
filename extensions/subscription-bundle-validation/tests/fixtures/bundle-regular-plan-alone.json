@@ -4,7 +4,7 @@
     "target": "cart.validations.generate.run",
     "input": {
       "buyerJourney": {
-        "step": "CHECKOUT_INTERACTION"
+        "step": "CHECKOUT_COMPLETION"
       },
       "cart": {
         "lines": [
@@ -12,14 +12,16 @@
             "quantity": 1,
             "sellingPlanAllocation": {
               "sellingPlan": {
-                "id": "gid://shopify/SellingPlan/692041908516"
+                "id": "gid://shopify/SellingPlan/691283656996"
               }
             },
             "merchandise": {
               "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/2",
+              "id": "gid://shopify/ProductVariant/51972662722852",
               "product": {
-                "id": "gid://shopify/Product/555",
+                "id": "gid://shopify/Product/10336375603492",
+                "productType": "",
+                "helmetRequiredSellingPlans": null,
                 "requiresAnyProduct": null
               }
             }
@@ -31,12 +33,7 @@
       "operations": [
         {
           "validationAdd": {
-            "errors": [
-              {
-                "message": "The Complete Hair Loss Treatment Bundle subscription is only available with a Theradome PRO or EVO helmet. Add a helmet to your order or remove the subscription.",
-                "target": "$.cart"
-              }
-            ]
+            "errors": []
           }
         }
       ]

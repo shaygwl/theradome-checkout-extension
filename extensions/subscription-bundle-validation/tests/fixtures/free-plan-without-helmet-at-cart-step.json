@@ -4,7 +4,7 @@
     "target": "cart.validations.generate.run",
     "input": {
       "buyerJourney": {
-        "step": "CHECKOUT_COMPLETION"
+        "step": "CART_INTERACTION"
       },
       "cart": {
         "lines": [
@@ -17,23 +17,11 @@
             },
             "merchandise": {
               "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/1",
+              "id": "gid://shopify/ProductVariant/51972662722852",
               "product": {
                 "id": "gid://shopify/Product/10336375603492",
-                "requiresAnyProduct": {
-                  "jsonValue": []
-                }
-              }
-            }
-          },
-          {
-            "quantity": 1,
-            "sellingPlanAllocation": null,
-            "merchandise": {
-              "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/45238037152036",
-              "product": {
-                "id": "gid://shopify/Product/901",
+                "productType": "",
+                "helmetRequiredSellingPlans": null,
                 "requiresAnyProduct": null
               }
             }

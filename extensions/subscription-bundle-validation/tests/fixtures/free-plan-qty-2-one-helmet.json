@@ -1,0 +1,61 @@
+{
+  "payload": {
+    "export": "cart-validations-generate-run",
+    "target": "cart.validations.generate.run",
+    "input": {
+      "buyerJourney": {
+        "step": "CHECKOUT_COMPLETION"
+      },
+      "cart": {
+        "lines": [
+          {
+            "quantity": 1,
+            "sellingPlanAllocation": null,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/45238034825508",
+              "product": {
+                "id": "gid://shopify/Product/8321560084772",
+                "productType": "Theradome Helmet Category (NEW)",
+                "helmetRequiredSellingPlans": null,
+                "requiresAnyProduct": null
+              }
+            }
+          },
+          {
+            "quantity": 2,
+            "sellingPlanAllocation": {
+              "sellingPlan": {
+                "id": "gid://shopify/SellingPlan/692041908516"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/51972662722852",
+              "product": {
+                "id": "gid://shopify/Product/10336375603492",
+                "productType": "",
+                "helmetRequiredSellingPlans": null,
+                "requiresAnyProduct": null
+              }
+            }
+          }
+        ]
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "validationAdd": {
+            "errors": [
+              {
+                "message": "The free first month of the Complete Hair Growth Bundle subscription is only available with a Theradome PRO or EVO helmet. Add a helmet to your order or choose a different purchase option.",
+                "target": "$.cart"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

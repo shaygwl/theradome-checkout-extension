@@ -16,6 +16,10 @@ query CartValidationsGenerateRunInput {
           id
           product {
             id
+            productType
+            helmetRequiredSellingPlans: metafield(namespace: "custom", key: "helmet_required_selling_plans") {
+              jsonValue
+            }
             requiresAnyProduct: metafield(namespace: "custom", key: "requires_any_product") {
               jsonValue
             }

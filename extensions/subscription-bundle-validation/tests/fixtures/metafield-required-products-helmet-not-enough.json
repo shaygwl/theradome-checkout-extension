@@ -17,9 +17,11 @@
             },
             "merchandise": {
               "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/1",
+              "id": "gid://shopify/ProductVariant/51972662722852",
               "product": {
                 "id": "gid://shopify/Product/10336375603492",
+                "productType": "",
+                "helmetRequiredSellingPlans": null,
                 "requiresAnyProduct": {
                   "jsonValue": [
                     "gid://shopify/Product/777"
@@ -35,7 +37,9 @@
               "__typename": "ProductVariant",
               "id": "gid://shopify/ProductVariant/45238034825508",
               "product": {
-                "id": "gid://shopify/Product/900",
+                "id": "gid://shopify/Product/8321560084772",
+                "productType": "Theradome Helmet Category (NEW)",
+                "helmetRequiredSellingPlans": null,
                 "requiresAnyProduct": null
               }
             }
@@ -49,7 +53,7 @@
           "validationAdd": {
             "errors": [
               {
-                "message": "The Complete Hair Loss Treatment Bundle subscription is only available with a Theradome PRO or EVO helmet. Add a helmet to your order or remove the subscription.",
+                "message": "The free first month of the Complete Hair Growth Bundle subscription is only available with a Theradome PRO or EVO helmet. Add a helmet to your order or choose a different purchase option.",
                 "target": "$.cart"
               }
             ]

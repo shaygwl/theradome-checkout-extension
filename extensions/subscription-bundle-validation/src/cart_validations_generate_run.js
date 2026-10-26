@@ -5,34 +5,40 @@
  * @typedef {import("../generated/api").CartValidationsGenerateRunResult} CartValidationsGenerateRunResult
  */
 
-// Fallback rule, used for any bundle-only product that has no
-// custom.requires_any_product metafield. Keeps today's behaviour working even
-// if the metafield is never filled in or is cleared by mistake.
-const FALLBACK_RESTRICTED_PRODUCT_IDS = [
-  "gid://shopify/Product/10336375603492", // Complete Hair Loss Treatment Bundle (subscription)
-];
+// Only a line bought on one of these selling plans is restricted. The same
+// product sold one-time or on its regular plan (691283656996) is never touched.
+// Overridable per product with custom.helmet_required_selling_plans.
 const FALLBACK_RESTRICTED_SELLING_PLAN_IDS = [
   "gid://shopify/SellingPlan/692041908516", // $0 first order, then $79 every 2 months
 ];
-const FALLBACK_REQUIRED_IDS = [
-  "gid://shopify/ProductVariant/45238034825508", // Theradome PRO helmet
-  "gid://shopify/ProductVariant/45238037152036", // Theradome EVO helmet
+
+// What counts as a helmet when the product has no custom.requires_any_product.
+// Product type also covers separate sale listings such as a Black Friday helmet.
+const FALLBACK_HELMET_IDS = [
+  "gid://shopify/Product/8321560084772", // Theradome PRO LH80
+  "gid://shopify/Product/8321561362724", // Theradome EVO LH40
+  "gid://shopify/ProductVariant/45238034825508", // Theradome PRO LH80
+  "gid://shopify/ProductVariant/45238037152036", // Theradome EVO LH40
 ];
+const FALLBACK_HELMET_PRODUCT_TYPE = "Theradome Helmet Category (NEW)";
 
 const ERROR_MESSAGE =
-  "The Complete Hair Loss Treatment Bundle subscription is only available with a Theradome PRO or EVO helmet. Add a helmet to your order or remove the subscription.";
+  "The free first month of the Complete Hair Growth Bundle subscription is only available with a Theradome PRO or EVO helmet. Add a helmet to your order or choose a different purchase option.";
 
 /**
- * Reads custom.requires_any_product (list.product_reference or
- * list.variant_reference). Returns null when it is missing or unusable so the
- * caller falls back to the hardcoded rule.
+ * Reads a list metafield of IDs. Accepts full GIDs, or bare numeric IDs that
+ * get `gidPrefix`. Returns null when missing or empty so the fallback applies.
  * @param {any} metafield
+ * @param {string} gidPrefix
  * @returns {string[] | null}
  */
-function readRequiredIds(metafield) {
+function readIds(metafield, gidPrefix) {
   const value = metafield?.jsonValue;
   if (!Array.isArray(value)) return null;
-  const ids = value.filter((id) => typeof id === "string" && id.startsWith("gid://shopify/"));
+  const ids = value
+    .map((id) => (typeof id === "string" ? id.trim() : ""))
+    .map((id) => (/^\d+$/.test(id) ? `${gidPrefix}${id}` : id))
+    .filter((id) => id.startsWith("gid://shopify/"));
   return ids.length > 0 ? ids : null;
 }
 
@@ -51,32 +57,38 @@ export function cartValidationsGenerateRun(input) {
     const variant = line.merchandise.__typename === "ProductVariant" ? line.merchandise : null;
     return {
       quantity: line.quantity,
-      variantId: variant?.id ?? null,
-      productId: variant?.product.id ?? null,
+      variantId: variant?.id ?? "",
+      productId: variant?.product.id ?? "",
+      productType: variant?.product.productType ?? "",
       sellingPlanId: line.sellingPlanAllocation?.sellingPlan.id ?? null,
-      requiredIds: readRequiredIds(variant?.product.requiresAnyProduct),
+      restrictedPlanIds:
+        readIds(variant?.product.helmetRequiredSellingPlans, "gid://shopify/SellingPlan/") ??
+        FALLBACK_RESTRICTED_SELLING_PLAN_IDS,
+      requiredIds: readIds(variant?.product.requiresAnyProduct, "gid://shopify/Product/"),
     };
   });
 
-  /** @param {string[]} ids */
-  const quantityOf = (ids) =>
+  /** @param {string[] | null} requiredIds */
+  const quantityOf = (requiredIds) =>
     lines
-      .filter((line) => ids.includes(line.variantId ?? "") || ids.includes(line.productId ?? ""))
+      .filter((line) =>
+        requiredIds
+          ? requiredIds.includes(line.variantId) || requiredIds.includes(line.productId)
+          : FALLBACK_HELMET_IDS.includes(line.variantId) ||
+            FALLBACK_HELMET_IDS.includes(line.productId) ||
+            line.productType === FALLBACK_HELMET_PRODUCT_TYPE
+      )
       .reduce((sum, line) => sum + line.quantity, 0);
 
   // Group restricted quantity by the set of products that unlocks it, so one
   // helmet covers at most one subscription.
-  /** @type {Map<string, { requiredIds: string[], quantity: number }>} */
+  /** @type {Map<string, { requiredIds: string[] | null, quantity: number }>} */
   const groups = new Map();
   for (const line of lines) {
-    const isFallbackRestricted =
-      FALLBACK_RESTRICTED_PRODUCT_IDS.includes(line.productId ?? "") ||
-      FALLBACK_RESTRICTED_SELLING_PLAN_IDS.includes(line.sellingPlanId ?? "");
-    if (!line.requiredIds && !isFallbackRestricted) continue;
+    if (!line.sellingPlanId || !line.restrictedPlanIds.includes(line.sellingPlanId)) continue;
 
-    const requiredIds = line.requiredIds ?? FALLBACK_REQUIRED_IDS;
-    const key = [...requiredIds].sort().join(",");
-    const group = groups.get(key) ?? { requiredIds, quantity: 0 };
+    const key = line.requiredIds ? [...line.requiredIds].sort().join(",") : "fallback";
+    const group = groups.get(key) ?? { requiredIds: line.requiredIds, quantity: 0 };
     group.quantity += line.quantity;
     groups.set(key, group);
   }

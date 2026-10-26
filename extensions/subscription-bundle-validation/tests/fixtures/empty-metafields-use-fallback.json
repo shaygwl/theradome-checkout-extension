@@ -17,13 +17,15 @@
             },
             "merchandise": {
               "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/1",
+              "id": "gid://shopify/ProductVariant/51972662722852",
               "product": {
                 "id": "gid://shopify/Product/10336375603492",
+                "productType": "",
+                "helmetRequiredSellingPlans": {
+                  "jsonValue": []
+                },
                 "requiresAnyProduct": {
-                  "jsonValue": [
-                    "gid://shopify/Product/777"
-                  ]
+                  "jsonValue": []
                 }
               }
             }
@@ -33,9 +35,11 @@
             "sellingPlanAllocation": null,
             "merchandise": {
               "__typename": "ProductVariant",
-              "id": "gid://shopify/ProductVariant/1",
+              "id": "gid://shopify/ProductVariant/45238037152036",
               "product": {
-                "id": "gid://shopify/Product/777",
+                "id": "gid://shopify/Product/8321561362724",
+                "productType": "Theradome Helmet Category (NEW)",
+                "helmetRequiredSellingPlans": null,
                 "requiresAnyProduct": null
               }
             }
