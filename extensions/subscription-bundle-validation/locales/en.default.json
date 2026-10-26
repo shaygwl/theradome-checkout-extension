@@ -1,0 +1,4 @@
+{
+  "name": "GWL - Subscription bundle validation",
+  "description": "Blocks the $0 hair loss subscription at checkout unless a PRO or EVO helmet is in the cart"
+}

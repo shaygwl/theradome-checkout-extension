@@ -1,0 +1,27 @@
+query CartValidationsGenerateRunInput {
+  buyerJourney {
+    step
+  }
+  cart {
+    lines {
+      quantity
+      sellingPlanAllocation {
+        sellingPlan {
+          id
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            id
+            requiresAnyProduct: metafield(namespace: "custom", key: "requires_any_product") {
+              jsonValue
+            }
+          }
+        }
+      }
+    }
+  }
+}

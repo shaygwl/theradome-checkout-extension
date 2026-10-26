@@ -1,6 +1,7 @@
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useEffect } from "preact/hooks";
+import { hasVariant, useCheckoutConfig } from "./config.js";
 
 export default async () => {
   render(<Extension />, document.body);
@@ -14,31 +15,8 @@ function Extension() {
 
   const discountCodes = shopify.discountCodes.value;
 
-  // Variant IDs
-  const PRO_HELMET_VARIANT_ID = "45238034825508";
-  const EVO_HELMET_VARIANT_ID = "45238037152036";
-  const HAIR_GROWTH_BUNDLE_VARIANT_ID = "51972662722852";
-  const PRO_WARRANTY_VARIANT_ID = "45238043246884";
-  const EVO_WARRANTY_VARIANT_ID = "45238044786980";
-  const EBOOK_VARIANT_ID = "49994774905124";
-
-  // Banner URLs
-  const BUNDLE_CHECKOUT_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/bundle-checkout-banner.png?v=1775126842";
-  const BUNDLE_NO_SHIPPING_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/bundle-checkout-banner-no-shipping.png?v=1780985632";
-  const SIX_MONTH_WARRANTY_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/Row_f346b3a3-87d3-478f-93a5-f22abb11e425.png?v=1724425851";
-  const SIX_MONTH_NO_SHIPPING_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/6-month-banner-no-shipping.png?v=1780985625";
-  const TWELVE_MONTH_WARRANTY_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/twelve_month_warranty_banner.png?v=1789390950";
-  const TWELVE_MONTH_NO_SHIPPING_BANNER = "https://cdn.shopify.com/s/files/1/0721/6024/8100/files/twelve_month_warranty_banner_no_ship.png?v=1789391204";
-
-  // s-image defaults to a 1/1 frame, so set each banner's real width/height ratio
-  const BANNER_ASPECT_RATIOS = {
-    [BUNDLE_CHECKOUT_BANNER]: "878/576",
-    [BUNDLE_NO_SHIPPING_BANNER]: "878/444",
-    [SIX_MONTH_WARRANTY_BANNER]: "1756/1824",
-    [SIX_MONTH_NO_SHIPPING_BANNER]: "1756/1538",
-    [TWELVE_MONTH_WARRANTY_BANNER]: "878/1096",
-    [TWELVE_MONTH_NO_SHIPPING_BANNER]: "878/964",
-  };
+  const { config, ready } = useCheckoutConfig();
+  const { variants, images, discountCodes: codes, protectedDiscountCodes } = config;
 
   const cartProductWarranty =
     cartAttributes.find((attr) => attr.key === "product_warranty")?.value ?? "";
@@ -47,25 +25,20 @@ function Extension() {
     (attr) => attr.key === "completed_quiz" && attr.value === "true"
   );
 
-  const isVariantId = (merchandiseId, numericVariantId) =>
-    typeof merchandiseId === "string" &&
-    merchandiseId.includes("gid://shopify/ProductVariant/") &&
-    merchandiseId.endsWith(`/${numericVariantId}`);
-
   // Check existence of individual products
-  const hasProHelmet = cartLines.some((line) => isVariantId(line?.merchandise?.id, PRO_HELMET_VARIANT_ID));
-  const hasEvoHelmet = cartLines.some((line) => isVariantId(line?.merchandise?.id, EVO_HELMET_VARIANT_ID));
-  const hasHairBundle = cartLines.some((line) => isVariantId(line?.merchandise?.id, HAIR_GROWTH_BUNDLE_VARIANT_ID));
-  const hasProWarranty = cartLines.some((line) => isVariantId(line?.merchandise?.id, PRO_WARRANTY_VARIANT_ID));
-  const hasEvoWarranty = cartLines.some((line) => isVariantId(line?.merchandise?.id, EVO_WARRANTY_VARIANT_ID));
-  const hasEbook = cartLines.some((line) => isVariantId(line?.merchandise?.id, EBOOK_VARIANT_ID));
+  const hasProHelmet = hasVariant(cartLines, variants.proHelmet);
+  const hasEvoHelmet = hasVariant(cartLines, variants.evoHelmet);
+  const hasHairBundle = hasVariant(cartLines, variants.hairBundle);
+  const hasProWarranty = hasVariant(cartLines, variants.proWarranty);
+  const hasEvoWarranty = hasVariant(cartLines, variants.evoWarranty);
+  const hasEbook = hasVariant(cartLines, variants.ebook);
 
   // Validate strict 4-product bundle combinations
   const isProBundleComplete = hasProHelmet && hasProWarranty && hasHairBundle && hasEbook;
   const isEvoBundleComplete = hasEvoHelmet && hasEvoWarranty && hasHairBundle && hasEbook;
 
   const helmetInCart = hasProHelmet || hasEvoHelmet;
-  const bundleLine = cartLines.find((line) => isVariantId(line?.merchandise?.id, HAIR_GROWTH_BUNDLE_VARIANT_ID));
+  const bundleLine = cartLines.find((line) => line?.merchandise?.id === variants.hairBundle);
   const bundleInCart = Boolean(bundleLine);
 
   const bundleProductWarranty =
@@ -77,18 +50,17 @@ function Extension() {
   // already being applied: the extension adds PROBUNDLE26, the two cannot
   // combine, and Shopify drops the one that was deliberately applied. While
   // any of these is on the checkout the auto-reapply stands down entirely.
-  const PROTECTED_DISCOUNT_CODES = ["PROBUNDLE26TEST"];
-
   const hasProtectedCode = discountCodes.some((dc) =>
-    PROTECTED_DISCOUNT_CODES.includes(dc?.code?.toUpperCase())
+    protectedDiscountCodes.includes(dc?.code?.toUpperCase())
   );
 
-  // Set target discount code ONLY if a complete bundle is present
+  // Set target discount code ONLY if a complete bundle is present. Waits for
+  // the config so a fallback code is never applied ahead of the configured one.
   let targetCode = null;
-  if (isProBundleComplete) {
-    targetCode = isQuizTaker ? "TQPRO26" : "PROBUNDLE26";
-  } else if (isEvoBundleComplete) {
-    targetCode = isQuizTaker ? "TQEVO26" : "EVOBUNDLE26";
+  if (ready && isProBundleComplete) {
+    targetCode = isQuizTaker ? codes.proQuiz : codes.pro;
+  } else if (ready && isEvoBundleComplete) {
+    targetCode = isQuizTaker ? codes.evoQuiz : codes.evo;
   }
 
   // Auto-Reapply Logic
@@ -109,6 +81,9 @@ function Extension() {
     }
   }, [targetCode, discountCodes, hasProtectedCode]);
 
+  // Hold the banner until the config settles so the fallback never flashes first
+  if (!ready) return null;
+
   // Banner Logic
   let isNoShipping = false;
   const countryCode = shippingAddress?.countryCode;
@@ -125,23 +100,23 @@ function Extension() {
     isNoShipping = hasShippingCost;
   }
 
-  let imageUrl = isNoShipping ? SIX_MONTH_NO_SHIPPING_BANNER : SIX_MONTH_WARRANTY_BANNER;
+  let banner = isNoShipping ? images.sixMonthNoShipping : images.sixMonth;
 
   if (bundleInCart && !helmetInCart) {
-    imageUrl = isNoShipping ? BUNDLE_NO_SHIPPING_BANNER : BUNDLE_CHECKOUT_BANNER;
+    banner = isNoShipping ? images.bundleNoShipping : images.bundle;
   } else {
     const warrantyToUse = bundleInCart && helmetInCart ? bundleProductWarranty : cartProductWarranty;
 
     if (warrantyToUse.includes("12 month") || warrantyToUse.includes("12 months")) {
-      imageUrl = isNoShipping ? TWELVE_MONTH_NO_SHIPPING_BANNER : TWELVE_MONTH_WARRANTY_BANNER;
+      banner = isNoShipping ? images.twelveMonthNoShipping : images.twelveMonth;
     } else if (warrantyToUse.includes("6 month") || warrantyToUse.includes("6 months")) {
-      imageUrl = isNoShipping ? SIX_MONTH_NO_SHIPPING_BANNER : SIX_MONTH_WARRANTY_BANNER;
+      banner = isNoShipping ? images.sixMonthNoShipping : images.sixMonth;
     }
   }
 
   return (
     <s-stack>
-      <s-image src={imageUrl} alt="" aspectRatio={BANNER_ASPECT_RATIOS[imageUrl]} border="base" borderRadius="base" />
+      <s-image src={banner.url} alt="" aspectRatio={banner.aspectRatio} border="base" borderRadius="base" />
     </s-stack>
   );
 }
