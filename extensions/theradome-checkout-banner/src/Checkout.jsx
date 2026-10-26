@@ -1,7 +1,7 @@
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useEffect } from "preact/hooks";
-import { hasVariant, useCheckoutConfig } from "./config.js";
+import { detectHelmets, hasSubscriptionPlan, hasVariant, useCheckoutConfig } from "./config.js";
 
 export default async () => {
   render(<Extension />, document.body);
@@ -26,18 +26,22 @@ function Extension() {
   );
 
   // Check existence of individual products
-  const hasProHelmet = hasVariant(cartLines, variants.proHelmet);
-  const hasEvoHelmet = hasVariant(cartLines, variants.evoHelmet);
   const hasHairBundle = hasVariant(cartLines, variants.hairBundle);
   const hasProWarranty = hasVariant(cartLines, variants.proWarranty);
   const hasEvoWarranty = hasVariant(cartLines, variants.evoWarranty);
   const hasEbook = hasVariant(cartLines, variants.ebook);
 
+  // An unlisted helmet listing (e.g. a sale product) is PRO or EVO by its warranty
+  const helmets = detectHelmets(cartLines, config);
+  const hasProHelmet = helmets.pro || (helmets.unlisted && hasProWarranty);
+  const hasEvoHelmet = helmets.evo || (helmets.unlisted && hasEvoWarranty);
+
   // Validate strict 4-product bundle combinations
   const isProBundleComplete = hasProHelmet && hasProWarranty && hasHairBundle && hasEbook;
   const isEvoBundleComplete = hasEvoHelmet && hasEvoWarranty && hasHairBundle && hasEbook;
+  const isSubscription = hasSubscriptionPlan(cartLines, config);
 
-  const helmetInCart = hasProHelmet || hasEvoHelmet;
+  const helmetInCart = helmets.any;
   const bundleLine = cartLines.find((line) => line?.merchandise?.id === variants.hairBundle);
   const bundleInCart = Boolean(bundleLine);
 
@@ -54,24 +58,33 @@ function Extension() {
 
   // Set target discount code ONLY if a complete bundle is present. Waits for
   // the config so a fallback code is never applied ahead of the configured one.
+  // With the $0 subscription plan in the cart the S code is tried first, and
+  // the regular code is the fallback if Shopify rejects it.
   let targetCode = null;
+  let fallbackCode = null;
   if (ready && isProBundleComplete) {
-    targetCode = isQuizTaker ? codes.proQuiz : codes.pro;
+    fallbackCode = isQuizTaker ? codes.proQuiz : codes.pro;
+    targetCode = isSubscription ? (isQuizTaker ? codes.proQuizSubscription : codes.proSubscription) : fallbackCode;
   } else if (ready && isEvoBundleComplete) {
-    targetCode = isQuizTaker ? codes.evoQuiz : codes.evo;
+    fallbackCode = isQuizTaker ? codes.evoQuiz : codes.evo;
+    targetCode = isSubscription ? (isQuizTaker ? codes.evoQuizSubscription : codes.evoSubscription) : fallbackCode;
   }
 
   // Auto-Reapply Logic
   useEffect(() => {
-    if (targetCode && !hasAnyCode) {
-      shopify
-        .applyDiscountCodeChange({
-          type: "addDiscountCode",
-          code: targetCode,
-        })
-        .catch((err) => console.error("Failed to reapply discount:", err));
-    }
-  }, [targetCode, hasAnyCode]);
+    if (!targetCode || hasAnyCode) return;
+
+    const addCode = (code) => shopify.applyDiscountCodeChange({ type: "addDiscountCode", code });
+
+    addCode(targetCode)
+      .then((result) => {
+        if (result?.type === "error" && fallbackCode && fallbackCode !== targetCode) {
+          console.error(`Discount ${targetCode} rejected (${result.message}), trying ${fallbackCode}`);
+          return addCode(fallbackCode);
+        }
+      })
+      .catch((err) => console.error("Failed to reapply discount:", err));
+  }, [targetCode, fallbackCode, hasAnyCode]);
 
   // Hold the banner until the config settles so the fallback never flashes first
   if (!ready) return null;

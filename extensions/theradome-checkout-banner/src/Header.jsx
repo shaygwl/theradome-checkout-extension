@@ -1,6 +1,6 @@
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
-import { hasVariant, useCheckoutConfig } from "./config.js";
+import { detectHelmets, hasVariant, useCheckoutConfig } from "./config.js";
 
 export default async () => {
   render(<Extension />, document.body);
@@ -15,8 +15,7 @@ function Extension() {
 
   const { variants, images } = config;
 
-  const helmetInCart =
-    hasVariant(cartLines, variants.proHelmet) || hasVariant(cartLines, variants.evoHelmet);
+  const helmetInCart = detectHelmets(cartLines, config).any;
   const bundleInCart = hasVariant(cartLines, variants.hairBundle);
 
   const showBundle = !helmetInCart && bundleInCart;

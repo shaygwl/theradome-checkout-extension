@@ -43,7 +43,10 @@ Create the metaobject definition with **Storefront API access: read** turned on,
 | `bundle_banner`, `bundle_banner_no_shipping` | File (image) | `BUNDLE_*` |
 | `six_month_banner`, `six_month_banner_no_shipping` | File (image) | `SIX_MONTH_*` |
 | `twelve_month_banner`, `twelve_month_banner_no_shipping` | File (image) | `TWELVE_MONTH_*` |
-| `discount_codes` | JSON `{ pro, pro_quiz, evo, evo_quiz }` | `PROBUNDLE26`, `TQPRO26`, … |
+| `discount_codes` | JSON `{ pro, pro_quiz, evo, evo_quiz, pro_subscription, pro_quiz_subscription, evo_subscription, evo_quiz_subscription }` | `PROBUNDLE26`, `TQPRO26`, `PROBUNDLE26S`, … |
+| `pro_helmet_products`, `evo_helmet_products` | List of products, **added to** PRO `8321560084772` / EVO `8321561362724` | Helmet variant IDs only |
+| `helmet_product_type` | Single line text | `Theradome Helmet Category (NEW)` |
+| `subscription_selling_plans` | List of single-line text (plan IDs), **added to** `692041908516` | — |
 
 Image fields return `MediaImage.image { url width height }`, so the aspect ratio comes from the file itself. The hand-maintained `BANNER_ASPECT_RATIOS` map is then only needed for the fallback URLs.
 
@@ -72,6 +75,21 @@ If marketing later needs brand-new conditions (for example a market-specific ban
    - The live version adds the bundle code whenever its exact name is missing. With `PROBUNDLE26S` (after the upgrade button) it adds `PROBUNDLE26`, and with `TQPRO26S` it adds `TQPRO26`. With any sale code (Black Friday, Cyber Monday, November) it adds the bundle code on top. This was confirmed by running the live code through a test harness.
    - Any code already applied is now left alone. So there is no list of protected codes to maintain for new sale codes.
    - If the buyer removes every code from a complete bundle, the bundle code is still re-added as before.
+7. **Re-added code follows the subscription.** When a bundle line is on a `subscription_selling_plans` plan ($0 plan by default), the re-added code is the `S` one: `PROBUNDLE26S`, `TQPRO26S`, `EVOBUNDLE26S` or `TQEVO26S`. If Shopify rejects that code (it doesn't exist, it expired, or it's not eligible), the regular code is tried once instead. A bundle on the regular plan `691283656996` gets the regular code.
+8. **Helmet detection matches the validation.** A helmet is a listed variant, any variant of a `pro_helmet_products` / `evo_helmet_products` product, or any product with type `helmet_product_type`.
+   - A helmet-type product that is in neither list (a separate Black Friday listing, for example) counts as PRO when the PRO warranty is in the cart, and as EVO when the EVO warranty is. So the banners and bundle detection work with no setup.
+   - Listing the product in `pro_helmet_products` makes it explicit, if the sale helmet uses a different product type.
+
+### Running a sale (for example Black Friday)
+
+Nothing needs a deploy, and new codes don't need adding anywhere to stay safe. Codes already applied from the cart (`BFPROBUNDLE26`, `BFPROBUNDLE26S`, …) are always left alone.
+
+If you also want a removed code to come back as the sale code rather than the standard one:
+1. Set `discount_codes` to the sale codes, for example `{"pro":"BFPROBUNDLE26","pro_subscription":"BFPROBUNDLE26S","evo":"BFEVOBUNDLE26","evo_subscription":"BFEVOBUNDLE26S"}`. Keys you leave out, such as the quiz codes, keep their defaults.
+2. If the sale helmet is a separate product with a different product type, add it to `pro_helmet_products` / `evo_helmet_products`.
+3. Clear `discount_codes` after the sale. Empty means the standard codes.
+
+The theme's upgrade-subscription button swaps codes in the cart. It's outside this repo and needs to know the sale pairs.
 
 ### Creating the metaobject
 
@@ -85,7 +103,10 @@ Field types:
 | --- | --- |
 | `pro_helmet`, `evo_helmet`, `hair_bundle`, `pro_warranty`, `evo_warranty`, `ebook` | Product variant (one) |
 | `header_helmet_desktop`, `header_helmet_mobile`, `header_bundle_desktop`, `header_bundle_mobile`, `bundle_banner`, `bundle_banner_no_shipping`, `six_month_banner`, `six_month_banner_no_shipping`, `twelve_month_banner`, `twelve_month_banner_no_shipping` | File (images only) |
-| `discount_codes` | JSON, for example `{"pro":"PROBUNDLE26","pro_quiz":"TQPRO26","evo":"EVOBUNDLE26","evo_quiz":"TQEVO26"}`. Keys you leave out keep their default. |
+| `discount_codes` | JSON, for example `{"pro":"PROBUNDLE26","pro_quiz":"TQPRO26","evo":"EVOBUNDLE26","evo_quiz":"TQEVO26","pro_subscription":"PROBUNDLE26S","pro_quiz_subscription":"TQPRO26S","evo_subscription":"EVOBUNDLE26S","evo_quiz_subscription":"TQEVO26S"}`. Keys you leave out keep their default. |
+| `pro_helmet_products`, `evo_helmet_products` | Product (list) |
+| `helmet_product_type` | Single line text |
+| `subscription_selling_plans` | Single line text (list) |
 
 Then add one entry with the handle **`default`**. Leave any field empty to keep today's value for it.
 
@@ -97,7 +118,10 @@ Then add one entry with the handle **`default`**. Leave any field empty to keep 
 
 ### Test checklist
 
-Automated (harness rendering the real `Checkout.jsx` and `Header.jsx` with a mocked `shopify` object; 26 scenarios pass):
+Automated (harness rendering the real `Checkout.jsx` and `Header.jsx` with a mocked `shopify` object; 47 scenarios pass):
+- A Black Friday helmet listing shows the helmet banners and pairs with its PRO or EVO warranty.
+- `S` codes are used with the $0 plan, including the quiz versions, and the regular code is the fallback when one is rejected.
+- Configured sale codes are used, and `BF…` codes already applied are left alone.
 - Banners show today's images when there is no metaobject, an empty metaobject, a failed query, an errored query (no Storefront access), a hung query (after 4s) or a broken image.
 - A configured image replaces only its own banner.
 - Auto-apply adds `PROBUNDLE26`, `TQPRO26`, `EVOBUNDLE26` or `TQEVO26` to a complete bundle with no code.
@@ -107,4 +131,5 @@ Automated (harness rendering the real `Checkout.jsx` and `Header.jsx` with a moc
 Still to check manually on a dev store or in the checkout editor before go-live:
 - Every banner branch on a real checkout: helmet only, bundle only, bundle + helmet with a 6- or 12-month warranty, US vs non-US address.
 - Upgrade-subscription flow: cart with `PROBUNDLE26` → upgrade → `PROBUNDLE26S` stays applied through checkout.
+- On a $0-plan bundle cart, remove the code at checkout. `PROBUNDLE26S` (or `TQPRO26S`) should come back. Confirm `EVOBUNDLE26S` and `TQEVO26S` exist as codes; if they don't, the regular EVO code is used instead.
 - The $0 plan without a helmet shows the validation error. The bundle on the regular plan checks out normally.

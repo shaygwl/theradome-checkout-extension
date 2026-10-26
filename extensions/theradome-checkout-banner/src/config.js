@@ -21,6 +21,16 @@ export const DEFAULT_CONFIG = {
     evoWarranty: "gid://shopify/ProductVariant/45238044786980",
     ebook: "gid://shopify/ProductVariant/49994774905124",
   },
+  // Any variant of these products is a PRO / EVO helmet, on top of the variants above
+  helmetProducts: {
+    pro: ["gid://shopify/Product/8321560084772"],
+    evo: ["gid://shopify/Product/8321561362724"],
+  },
+  // A product of this type that is in neither list (a separate sale listing,
+  // say) still counts as a helmet, and as PRO or EVO by the warranty beside it
+  helmetProductType: "Theradome Helmet Category (NEW)",
+  // A bundle line on one of these plans gets the *Subscription discount code
+  subscriptionSellingPlans: ["gid://shopify/SellingPlan/692041908516"],
   // s-image defaults to a 1/1 frame, so each banner carries its real width/height ratio
   images: {
     headerHelmetDesktop: { url: `${CDN}/helmet-top-banner.png?v=1775127559`, aspectRatio: ratio(2180, 478) },
@@ -39,6 +49,10 @@ export const DEFAULT_CONFIG = {
     proQuiz: "TQPRO26",
     evo: "EVOBUNDLE26",
     evoQuiz: "TQEVO26",
+    proSubscription: "PROBUNDLE26S",
+    proQuizSubscription: "TQPRO26S",
+    evoSubscription: "EVOBUNDLE26S",
+    evoQuizSubscription: "TQEVO26S",
   },
 };
 
@@ -70,6 +84,15 @@ const DISCOUNT_CODE_KEYS = {
   pro_quiz: "proQuiz",
   evo: "evo",
   evo_quiz: "evoQuiz",
+  pro_subscription: "proSubscription",
+  pro_quiz_subscription: "proQuizSubscription",
+  evo_subscription: "evoSubscription",
+  evo_quiz_subscription: "evoQuizSubscription",
+};
+
+const HELMET_PRODUCT_FIELDS = {
+  pro_helmet_products: "pro",
+  evo_helmet_products: "evo",
 };
 
 const CONFIG_QUERY = `query CheckoutConfig {
@@ -96,6 +119,20 @@ const CONFIG_QUERY = `query CheckoutConfig {
 const CONFIG_TIMEOUT_MS = 4000;
 
 const VARIANT_GID = /^gid:\/\/shopify\/ProductVariant\/\d+$/;
+const PRODUCT_GID = /^gid:\/\/shopify\/Product\/\d+$/;
+const SELLING_PLAN_GID = /^gid:\/\/shopify\/SellingPlan\/\d+$/;
+
+// List fields add to the defaults, so a wrong or partial list in the admin
+// can never stop the regular helmets or the $0 plan from being recognised
+const addIds = (defaults, value, pattern, gidPrefix) => {
+  const list = parseJson(value);
+  if (!Array.isArray(list)) return defaults;
+  const ids = list
+    .map((id) => (typeof id === "string" ? id.trim() : ""))
+    .map((id) => (/^\d+$/.test(id) ? `${gidPrefix}${id}` : id))
+    .filter((id) => pattern.test(id));
+  return [...new Set([...defaults, ...ids])];
+};
 
 const parseJson = (value) => {
   try {
@@ -120,6 +157,9 @@ export function mergeConfig(defaults, fields) {
     variants: { ...defaults.variants },
     images: { ...defaults.images },
     discountCodes: { ...defaults.discountCodes },
+    helmetProducts: { ...defaults.helmetProducts },
+    helmetProductType: defaults.helmetProductType,
+    subscriptionSellingPlans: defaults.subscriptionSellingPlans,
   };
   if (!Array.isArray(fields)) return config;
 
@@ -134,6 +174,13 @@ export function mergeConfig(defaults, fields) {
       for (const [remoteKey, configKey] of Object.entries(DISCOUNT_CODE_KEYS)) {
         if (isCode(codes?.[remoteKey])) config.discountCodes[configKey] = codes[remoteKey].trim();
       }
+    } else if (key in HELMET_PRODUCT_FIELDS) {
+      const model = HELMET_PRODUCT_FIELDS[key];
+      config.helmetProducts[model] = addIds(defaults.helmetProducts[model], value, PRODUCT_GID, "gid://shopify/Product/");
+    } else if (key === "helmet_product_type") {
+      if (isCode(value)) config.helmetProductType = value.trim();
+    } else if (key === "subscription_selling_plans") {
+      config.subscriptionSellingPlans = addIds(defaults.subscriptionSellingPlans, value, SELLING_PLAN_GID, "gid://shopify/SellingPlan/");
     }
   }
   return config;
@@ -174,3 +221,24 @@ export function useCheckoutConfig() {
 
 export const hasVariant = (lines, variantGid) =>
   lines.some((line) => line?.merchandise?.id === variantGid);
+
+// pro / evo: a listed helmet variant or product. unlisted: a helmet-type
+// product in neither list, which the caller can pair up by warranty.
+export function detectHelmets(lines, { variants, helmetProducts, helmetProductType }) {
+  const helmets = { pro: false, evo: false, unlisted: false };
+  for (const line of lines) {
+    const variantId = line?.merchandise?.id;
+    const product = line?.merchandise?.product;
+    if (variantId === variants.proHelmet || helmetProducts.pro.includes(product?.id)) {
+      helmets.pro = true;
+    } else if (variantId === variants.evoHelmet || helmetProducts.evo.includes(product?.id)) {
+      helmets.evo = true;
+    } else if (helmetProductType && product?.productType === helmetProductType) {
+      helmets.unlisted = true;
+    }
+  }
+  return { ...helmets, any: helmets.pro || helmets.evo || helmets.unlisted };
+}
+
+export const hasSubscriptionPlan = (lines, { subscriptionSellingPlans }) =>
+  lines.some((line) => subscriptionSellingPlans.includes(line?.merchandise?.sellingPlan?.id));
